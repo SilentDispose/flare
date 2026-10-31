@@ -1,0 +1,7 @@
+#pragma once
+
+#include <string_view>
+
+namespace Flare {
+    extern const std::string_view bridgeScriptSource;
+}

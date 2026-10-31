@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flare Frameless</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="window-shell">
+        <header class="titlebar" id="titlebar">
+            <div class="identity">
+                <span class="mark">F</span>
+                <span class="name">Flare Frameless</span>
+                <span class="hint">drag this area</span>
+            </div>
+            <div class="controls">
+                <button class="control" id="minimize" aria-label="Minimize">&#8211;</button>
+                <button class="control" id="maximize" aria-label="Maximize">&#9633;</button>
+                <button class="control close" id="close" aria-label="Close">&#215;</button>
+            </div>
+        </header>
+
+        <main class="content">
+            <section class="hero">
+                <span class="eyebrow">Frameless window</span>
+                <h1>Your own title bar, native window controls.</h1>
+                <p>The top strip is a native draggable region. The controls call the whitelisted <code>flare.window</code> API for this window only.</p>
+                <div class="stats">
+                    <div><strong id="state">normal</strong><span>window state</span></div>
+                    <div><strong id="size">0 x 0</strong><span>native bounds</span></div>
+                    <div><strong id="focus">yes</strong><span>focused</span></div>
+                </div>
+                <div class="actions">
+                    <button id="center">Center window</button>
+                    <button id="read">Read state</button>
+                    <button id="fullscreen">Toggle fullscreen</button>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

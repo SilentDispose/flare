@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flare Bridge Demo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="shell">
+        <header class="hero">
+            <div>
+                <span class="eyebrow">C++ &#8596; JavaScript</span>
+                <h1>Flare Bridge</h1>
+                <p>The page talks to native code through typed custom events and RPC. Native events never reach JavaScript automatically.</p>
+            </div>
+            <div class="status" id="connection">connecting</div>
+        </header>
+
+        <section class="grid">
+            <article class="panel">
+                <h2>RPC invoke</h2>
+                <p>Call a C++ handler registered with <code>Window::Handle</code>.</p>
+                <div class="row">
+                    <input id="left" type="number" value="21" aria-label="Left value">
+                    <span>+</span>
+                    <input id="right" type="number" value="21" aria-label="Right value">
+                    <button id="add">Invoke add</button>
+                </div>
+                <output id="add-result">No call yet</output>
+            </article>
+
+            <article class="panel">
+                <h2>Custom events</h2>
+                <p>Events are developer-defined. Native events such as resize or navigation stay in C++.</p>
+                <button id="emit">Emit button-clicked</button>
+                <button id="secret">Invoke permission handler</button>
+                <output id="event-result">No event yet</output>
+            </article>
+
+            <article class="panel">
+                <h2>Current window</h2>
+                <p><code>flare.window</code> can only control the window that hosts this page.</p>
+                <div class="row wrap">
+                    <button id="title">Set title</button>
+                    <button id="bounds">Read bounds</button>
+                    <button id="center">Center</button>
+                    <button id="top">Toggle always on top</button>
+                </div>
+                <output id="window-result">No window action yet</output>
+            </article>
+
+            <article class="panel">
+                <h2>Native profile</h2>
+                <p>Handlers may request permissions. Without an explicit grant list, registered handlers are available to this window.</p>
+                <button id="profile">Load profile</button>
+                <pre id="profile-result">Not loaded</pre>
+            </article>
+        </section>
+
+        <footer class="feed">
+            <h2>Native feed</h2>
+            <div id="feed"></div>
+        </footer>
+    </main>
+    <script src="app.js"></script>
+</body>
+</html>

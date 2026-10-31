@@ -1,0 +1,17 @@
+#pragma once
+
+#include "flare/app.h"
+#include "flare/bridge-options.h"
+#include "flare/browser-options.h"
+#include "flare/capabilities.h"
+#include "flare/error.h"
+#include "flare/event.h"
+#include "flare/events.h"
+#include "flare/geometry.h"
+#include "flare/icon.h"
+#include "flare/input.h"
+#include "flare/json.h"
+#include "flare/version.h"
+#include "flare/window-group.h"
+#include "flare/window-options.h"
+#include "flare/window.h"

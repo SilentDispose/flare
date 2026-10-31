@@ -1,0 +1,13 @@
+#include "bridge-script-data.h"
+
+#include <string_view>
+
+namespace Flare {
+    namespace {
+        const char bridgeScriptData[] = {
+@FLARE_BRIDGE_SCRIPT_BYTES@
+        };
+    }
+
+    const std::string_view bridgeScriptSource(bridgeScriptData, sizeof(bridgeScriptData));
+}

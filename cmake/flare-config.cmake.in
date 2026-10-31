@@ -1,0 +1,22 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(nlohmann_json)
+
+if(UNIX AND NOT APPLE)
+    find_dependency(Threads)
+    find_dependency(PkgConfig)
+    pkg_check_modules(WEBKITGTK IMPORTED_TARGET "webkit2gtk-4.1>=2.40")
+    if(NOT WEBKITGTK_FOUND)
+        pkg_check_modules(WEBKITGTK IMPORTED_TARGET "webkit2gtk-4.0>=2.40")
+    endif()
+    if(NOT WEBKITGTK_FOUND)
+        message(FATAL_ERROR "Flare requires webkit2gtk-4.1 or webkit2gtk-4.0")
+    endif()
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/flare-targets.cmake")
+
+include("${CMAKE_CURRENT_LIST_DIR}/flare-app.cmake")
+
+check_required_components(Flare)

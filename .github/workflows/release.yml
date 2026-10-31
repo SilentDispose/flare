@@ -1,0 +1,181 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        shell: bash
+        run: |
+          version="$(sed -nE 's/^project\(Flare VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' CMakeLists.txt | head -n1)"
+          if [ -z "$version" ]; then
+            echo "Unable to read the project version from CMakeLists.txt" >&2
+            exit 1
+          fi
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match CMake project version v${version}" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+          - os: ubuntu-latest
+            name: linux
+          - os: macos-latest
+            name: macos
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable MSVC
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgtk-3-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev || sudo apt-get install -y libwebkit2gtk-4.0-dev
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        shell: bash
+        run: brew install ninja
+      - name: Configure
+        shell: bash
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DFLARE_BUILD_EXAMPLES=ON -DFLARE_BUILD_TESTS=ON
+      - name: Build
+        shell: bash
+        run: cmake --build build
+      - name: Test
+        shell: bash
+        run: ctest --test-dir build --output-on-failure
+      - name: Sign macOS binaries
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          for file in build/bin/*; do
+            codesign --force --sign - "$file"
+          done
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = "${{ needs.version.outputs.version }}"
+          $arch = "${{ runner.arch }}".ToLower()
+          $name = "flare-$version-windows-$arch"
+          $stage = "package/$name"
+          New-Item -ItemType Directory -Force -Path "$stage/bin" | Out-Null
+          Copy-Item "build/bin/*.exe" "$stage/bin"
+          Copy-Item -Path readme.md, license.md -Destination "$stage"
+          Compress-Archive -Path "$stage/*" -DestinationPath "package/$name.zip"
+          Remove-Item -Recurse -Force "$stage"
+      - name: Package Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          version="${{ needs.version.outputs.version }}"
+          os="${{ matrix.name }}"
+          arch="$(echo "${{ runner.arch }}" | tr '[:upper:]' '[:lower:]')"
+          name="flare-${version}-${os}-${arch}"
+          stage="package/${name}"
+          mkdir -p "$stage/bin"
+          cp build/bin/* "$stage/bin/"
+          cp readme.md license.md "$stage/"
+          tar -czf "package/${name}.tar.gz" -C package "$name"
+          rm -rf "$stage"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.name }}-${{ runner.arch }}
+          path: package/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs:
+      - version
+      - build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: artifacts
+          merge-multiple: true
+      - name: Generate release notes
+        id: notes
+        shell: bash
+        env:
+          TAG: v${{ needs.version.outputs.version }}
+        run: |
+          current="$(git rev-parse HEAD)"
+          previous="$(git tag --sort=-version:refname | grep -vxF "$TAG" | head -n1 || true)"
+          if [ -n "$previous" ]; then
+            base="$(git rev-list -n1 "$previous")"
+            range="${previous}..HEAD"
+          else
+            base="$(git rev-list --max-parents=0 HEAD)"
+            range="${base}..HEAD"
+          fi
+          {
+            echo "Full changelog: ${base} - ${current}"
+            echo
+            echo "Compare: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${base}...${current}"
+            echo
+            echo "## Changes"
+            git log --no-merges --pretty=format:"- %h %s" "$range"
+            echo
+            echo
+            echo "## Runtime requirements"
+            echo "- Windows: Microsoft Edge WebView2 Runtime."
+            echo "- Linux: GTK 3 and WebKitGTK 4.1 or 4.0."
+            echo "- macOS: macOS 12 or newer."
+          } > release-notes.md
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+      - name: Create or update release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.notes.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping publication."
+            exit 0
+          fi
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "Flare $VERSION" --notes-file release-notes.md
+          gh release upload "$TAG" artifacts/* --clobber
